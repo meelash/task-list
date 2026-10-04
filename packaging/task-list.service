@@ -1,0 +1,14 @@
+[Unit]
+Description=Task List server (SQLite)
+Documentation=file:///usr/share/doc/task-list/README.md
+
+[Service]
+Type=simple
+Environment=PORT=4321 HOST=127.0.0.1
+Environment=DB=%h/.local/share/task-list/tasks.db
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning /usr/share/task-list/server.js
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

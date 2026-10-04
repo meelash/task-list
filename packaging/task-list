@@ -1,0 +1,198 @@
+#!/usr/bin/python3
+"""Task List desktop app: a GTK window around the task list server (no browser needed).
+
+The server normally runs as the systemd user service `task-list.service`. If it isn't
+running, this starts it, or, when the service isn't installed (running from a checkout),
+launches server.js directly.
+"""
+import os
+import subprocess
+import sys
+import urllib.request
+
+import gi
+
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+gi.require_version('WebKit', '6.0')
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit  # noqa: E402
+
+APP_ID = 'io.github.tasklist.TaskList'
+PORT = int(os.environ.get('TASK_LIST_PORT', '4321'))
+URL = f'http://127.0.0.1:{PORT}/'
+DATA_DIR = os.path.join(GLib.get_user_data_dir(), 'task-list')
+CACHE_DIR = os.path.join(GLib.get_user_cache_dir(), 'task-list')
+STATE_FILE = os.path.join(DATA_DIR, 'window.ini')
+HERE = os.path.dirname(os.path.realpath(__file__))
+SERVER_JS = next((p for p in ('/usr/share/task-list/server.js', os.path.join(HERE, '..', 'server.js'))
+                  if os.path.exists(p)), None)
+
+
+def server_up():
+    try:
+        with urllib.request.urlopen(URL + 'api/state', timeout=0.5) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
+def start_server():
+    """Ask systemd for the service; fall back to running server.js ourselves."""
+    r = subprocess.run(['systemctl', '--user', 'start', 'task-list.service'],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if r.returncode == 0 or not SERVER_JS:
+        return
+    env = dict(os.environ, PORT=str(PORT), HOST='127.0.0.1',
+               DB=os.environ.get('DB', os.path.join(DATA_DIR, 'tasks.db')))
+    subprocess.Popen(['node', '--disable-warning=ExperimentalWarning', SERVER_JS], env=env,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+
+
+MESSAGE_PAGE = """<!doctype html><meta charset="utf-8">
+<style>
+  :root {{ color-scheme: light dark; }}
+  body {{ font: 15px system-ui, sans-serif; display: grid; place-items: center; height: 100vh; margin: 0;
+         background: Canvas; color: CanvasText; }}
+  div {{ max-width: 440px; text-align: center; opacity: .75; line-height: 1.5; }}
+  code {{ font-size: 13px; }}
+</style><div>{}</div>"""
+
+
+class Window(Adw.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title='Task List')
+        self.state = GLib.KeyFile()
+        try:
+            self.state.load_from_file(STATE_FILE, GLib.KeyFileFlags.NONE)
+            w, h = self.state.get_integer('window', 'width'), self.state.get_integer('window', 'height')
+            maximized = self.state.get_boolean('window', 'maximized')
+        except GLib.Error:
+            w, h, maximized = 920, 860, False
+        self.set_default_size(w, h)
+        if maximized:
+            self.maximize()
+        self.connect('close-request', self.on_close)
+
+        # A persistent session keeps the page's offline cache between launches.
+        session = WebKit.NetworkSession.new(os.path.join(DATA_DIR, 'webkit'), CACHE_DIR)
+        session.connect('download-started', self.on_download)
+        self.view = WebKit.WebView(network_session=session)
+        self.view.get_settings().set_enable_developer_extras('TASK_LIST_DEBUG' in os.environ)
+        self.view.connect('decide-policy', self.on_policy)
+        self.view.connect('load-failed', self.on_load_failed)
+
+        # The page has its own title, so the header bar only carries the window buttons,
+        # tinted to match the page background.
+        header = Adw.HeaderBar(show_title=False)
+        header.add_css_class('flat')
+        header.add_css_class('task-list-header')
+        toolbar = Adw.ToolbarView()
+        toolbar.add_top_bar(header)
+        toolbar.set_content(self.view)
+        self.set_content(toolbar)
+
+        self.connect_to_server()
+
+    # --- server connection -------------------------------------------------
+    def connect_to_server(self):
+        if server_up():
+            self.view.load_uri(URL)
+            return
+        self.view.load_html(MESSAGE_PAGE.format('Starting…'), 'about:blank')
+        start_server()
+        self.tries = 0
+        GLib.timeout_add(200, self.poll_server)
+
+    def poll_server(self):
+        if server_up():
+            self.view.load_uri(URL)
+            return GLib.SOURCE_REMOVE
+        self.tries += 1
+        if self.tries < 50:
+            return GLib.SOURCE_CONTINUE
+        self.view.load_html(MESSAGE_PAGE.format(
+            'The task list server didn\'t start.<br><br>'
+            'Check it with <code>systemctl --user status task-list</code> '
+            'or <code>journalctl --user -u task-list</code>, then reopen this window.'), 'about:blank')
+        return GLib.SOURCE_REMOVE
+
+    def on_load_failed(self, view, event, uri, error):
+        if uri.startswith(URL):
+            # Server went away (e.g. restarted after an update): retry quietly.
+            GLib.timeout_add(1000, lambda: (self.connect_to_server(), GLib.SOURCE_REMOVE)[1])
+            return True
+        return False
+
+    # --- links & downloads -------------------------------------------------
+    def on_policy(self, view, decision, kind):
+        if kind not in (WebKit.PolicyDecisionType.NAVIGATION_ACTION, WebKit.PolicyDecisionType.NEW_WINDOW_ACTION):
+            return False
+        uri = decision.get_navigation_action().get_request().get_uri()
+        if uri.startswith(URL) or uri.startswith('about:') or uri.startswith('blob:') or uri.startswith('data:'):
+            return False
+        decision.ignore()
+        Gtk.UriLauncher.new(uri).launch(self, None, None, None)   # external links open in the browser
+        return True
+
+    def on_download(self, session, download):
+        def destination(dl, name):
+            folder = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD) or GLib.get_home_dir()
+            dl.set_destination(os.path.join(folder, os.path.basename(name)))
+            return True
+
+        def finished(dl):
+            note = Gio.Notification.new('Tasks exported')
+            note.set_body(GLib.filename_from_uri(dl.get_destination())[0] if dl.get_destination().startswith('file:')
+                          else dl.get_destination())
+            self.get_application().send_notification('export', note)
+
+        download.connect('decide-destination', destination)
+        download.connect('finished', finished)
+
+    # --- window state ------------------------------------------------------
+    def on_close(self, *_):
+        w, h = self.get_default_size()
+        self.state.set_integer('window', 'width', w)
+        self.state.set_integer('window', 'height', h)
+        self.state.set_boolean('window', 'maximized', self.is_maximized())
+        os.makedirs(DATA_DIR, exist_ok=True)
+        try:
+            self.state.save_to_file(STATE_FILE)
+        except GLib.Error:
+            pass
+        return False
+
+
+HEADER_CSS = '''
+.task-list-header { background: #f6f5f2; box-shadow: none; }
+.task-list-dark .task-list-header { background: #131315; }
+'''
+
+
+class App(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+        GLib.set_application_name('Task List')
+
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+        css = Gtk.CssProvider()
+        css.load_from_string(HEADER_CSS)
+        Gtk.StyleContext.add_provider_for_display(self.get_style_manager().get_display() or Gdk.Display.get_default(),
+                                                  css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.get_style_manager().connect('notify::dark', lambda *_: self.sync_dark())
+
+    def sync_dark(self):
+        dark = self.get_style_manager().get_dark()
+        for win in self.get_windows():
+            (win.add_css_class if dark else win.remove_css_class)('task-list-dark')
+
+    def do_activate(self):
+        win = self.get_active_window() or Window(self)
+        self.sync_dark()
+        win.present()
+
+
+if __name__ == '__main__':
+    sys.exit(App().run(sys.argv))

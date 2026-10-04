@@ -1,0 +1,33 @@
+name: Request cloud sync
+description: Ask for your task list to sync across devices or be shared.
+title: "Sync request: "
+labels: ["sync-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! This helps decide what kind of sync to build. If an existing issue already describes your case, a 👍 there counts too.
+  - type: checkboxes
+    id: devices
+    attributes:
+      label: Which devices should stay in sync?
+      options:
+        - label: Two or more computers
+        - label: Computer and phone
+        - label: Shared with other people (family, team, clients)
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Where should the data live?
+      options:
+        - A hosted service I'd sign up for
+        - My own server (self-hosted)
+        - A file in my existing cloud storage (Dropbox, Nextcloud, iCloud…)
+        - No preference
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Anything else?
+      description: How do you work today? Anything sync must or must not do (offline use, encryption, sharing a single project…)?

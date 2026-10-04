@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Task List
+GenericName=Tasks
+Comment=Keyboard-first task list with projects, deadlines and priorities
+Exec=task-list
+Icon=io.github.tasklist.TaskList
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=todo;tasks;checklist;deadline;projects;
+StartupNotify=true
+StartupWMClass=io.github.tasklist.TaskList

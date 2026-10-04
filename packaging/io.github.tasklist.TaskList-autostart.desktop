@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Task List
+Comment=Open the task list when you log in
+Exec=task-list
+Icon=io.github.tasklist.TaskList
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3

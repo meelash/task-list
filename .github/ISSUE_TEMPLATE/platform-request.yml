@@ -1,0 +1,35 @@
+name: Request another platform
+description: Ask for a native Task List app on your operating system or device.
+title: "Platform request: "
+labels: ["platform-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Requests decide what gets built next. If someone has already asked for your platform, a 👍 on their issue counts just as much.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS
+        - Windows
+        - Ubuntu / Debian (.deb)
+        - Arch Linux
+        - Flatpak (any Linux)
+        - Android
+        - iOS / iPadOS
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which OS version or device are you using?
+      placeholder: e.g. macOS 15, Windows 11, Ubuntu 24.04, Pixel 8
+  - type: textarea
+    id: why
+    attributes:
+      label: Anything else?
+      description: How would you use it? Is there anything that matters on your platform (menu bar, widgets, notifications…)?
