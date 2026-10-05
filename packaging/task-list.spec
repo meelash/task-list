@@ -1,5 +1,5 @@
 Name:           task-list
-Version:        %{?pkgversion}%{!?pkgversion:1.0.0}
+Version:        %{?pkgversion}%{!?pkgversion:1.1.0}
 Release:        %{?pkgrelease}%{!?pkgrelease:1}%{?dist}
 Summary:        Keyboard-first task list with projects, deadlines and priorities
 License:        MIT
@@ -62,5 +62,9 @@ fi
 %{_datadir}/icons/hicolor/scalable/apps/io.github.tasklist.TaskList.svg
 
 %changelog
+* Mon Oct 05 2026 Task List <noreply@localhost> - 1.1.0-1
+- MIT license
+- Drag project tabs to reorder projects; Move left/right in the project editor
+
 * Sun Oct 04 2026 Task List <noreply@localhost> - 1.0.0-1
 - Initial package
