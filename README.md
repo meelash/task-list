@@ -54,7 +54,7 @@ so only do that on a network you trust.
 
 Pasting several lines creates several tasks. Indentation, `-` bullets and `[x]` checkboxes are understood.
 
-**Projects.** Each project has a colour and its own tab. Click the active tab to rename it, recolour it or delete it.
+**Projects.** Each project has a colour and its own tab. Drag tabs to reorder projects, or click the active tab to rename, recolour, reorder or delete it.
 The **All** tab shows every project either *Grouped* (one section per project) or *Interleaved*.
 The interleaved list starts as round-robin (one top-level task from each project in turn).
 Dragging in it saves a custom order, and *Reset to round-robin* goes back.
@@ -75,3 +75,7 @@ Tables: `projects`, `tasks` (outline order as `position` + `depth`), `mix_slots`
 
 The project site lives in `docs/` and is served by GitHub Pages. `docs/demo/` is a copy of the app that runs without a server
 (it detects github.io, or add `?demo` to the URL). After changing `index.html`, refresh it with `npm run demo:update`.
+
+## License
+
+[MIT](LICENSE)

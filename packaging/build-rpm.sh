@@ -10,7 +10,7 @@ rm -rf "$top"
 mkdir -p "$top/SOURCES"
 
 tar czf "$top/SOURCES/task-list-$version.tar.gz" --transform "s,^,task-list-$version/," \
-  index.html server.js README.md packaging/
+  index.html server.js README.md LICENSE packaging/
 
 rpmbuild --quiet -bb packaging/task-list.spec \
   --define "_topdir $top" --define "pkgversion $version" --define "pkgrelease $release"

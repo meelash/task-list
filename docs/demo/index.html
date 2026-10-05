@@ -104,6 +104,11 @@ header.top {
 .tab .edit { opacity: .5; display: none; }
 .tab.on .edit { display: inline; }
 .tab.add { color: var(--faint); padding: 5px 10px; }
+.tab.shifting { transition: transform .16s ease; }
+.tab.dragging {
+  position: relative; z-index: 2; background: var(--surface); color: var(--text); border-color: var(--line);
+  box-shadow: var(--shadow); cursor: grabbing;
+}
 .tab.all .dots { display: inline-flex; }
 .tab.all .dots i { width: 7px; height: 7px; border-radius: 50%; margin-left: -2px; border: 1.5px solid var(--bg); box-sizing: content-box; }
 
@@ -234,6 +239,7 @@ body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select:
   cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: var(--text);
 }
 .opt:hover { background: var(--hover); }
+.opt:disabled { opacity: .4; cursor: default; background: none; }
 .opt.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .opt .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
 .inrow { display: flex; gap: 6px; align-items: center; margin-top: 7px; }
@@ -773,7 +779,7 @@ function renderTabs() {
   let html = `<button class="tab all${S.view === 'all' ? ' on' : ''}" data-view="all">`
     + `<span class="dots">${S.projects.slice(0, 5).map(p => `<i style="background:${p.color}"></i>`).join('')}</span>All <span class="n">${total}</span></button>`;
   for (const p of S.projects) {
-    html += `<button class="tab${S.view === p.id ? ' on' : ''}" data-view="${p.id}" style="--c:${p.color}" title="${S.view === p.id ? 'Click to edit project' : esc(p.name)}">`
+    html += `<button class="tab${S.view === p.id ? ' on' : ''}" data-view="${p.id}" style="--c:${p.color}" title="${S.view === p.id ? 'Click to edit project · drag to reorder' : esc(p.name) + ' · drag to reorder'}">`
       + `<span class="dot"></span>${esc(p.name)} <span class="n">${openCount(p)}</span><span class="edit">${ICON.pencil}</span></button>`;
   }
   html += `<button class="tab add" id="addProject" title="New project / client">+ Project</button>`;
@@ -1587,6 +1593,11 @@ function projectHTML(p) {
     <div class="inrow" style="margin-top:0"><input id="pname" value="${esc(p.name)}" aria-label="Project name" maxlength="40"></div>
     <div class="lbl">Colour</div>
     <div class="opts" style="gap:8px">${PALETTE.map(c => `<button class="swatch${c === p.color ? ' on' : ''}" data-act="color" data-v="${c}" style="--c:${c}" aria-label="${c}"></button>`).join('')}</div>
+    <div class="lbl">Order <span class="hint" style="font-weight:400">· or drag the tab</span></div>
+    <div class="opts">
+      <button class="opt" data-act="pmove" data-v="-1" ${S.projects[0] === p ? 'disabled' : ''}>← Move left</button>
+      <button class="opt" data-act="pmove" data-v="1" ${S.projects.at(-1) === p ? 'disabled' : ''}>Move right →</button>
+    </div>
     <div class="popfoot"><button class="danger" data-act="pdel" ${S.projects.length < 2 ? 'disabled title="You need at least one project"' : ''}>Delete project</button>
       <span class="hint">${openCount(p)} open task${openCount(p) === 1 ? '' : 's'}</span></div>`;
 }
@@ -1619,7 +1630,7 @@ function menuHTML() {
       <kbd>Backspace</kbd><span>At start: outdent, merge, or delete if empty</span>
       <kbd>Shift+↑ / ↓</kbd><span>Select tasks (also Shift+click; Ctrl+A twice for all)</span>
       <kbd>Delete</kbd><span>With tasks selected: delete them (Ctrl+C / Ctrl+X copy or cut)</span>
-      <kbd>Alt+0…9</kbd><span>Switch tabs</span>
+      <kbd>Alt+0…9</kbd><span>Switch tabs (drag a project tab to reorder)</span>
     </div></div>`;
 }
 
@@ -1640,6 +1651,14 @@ pop.addEventListener('click', e => {
     case 'del': deleteMany(popTargets()); break;
     case 'color': p.color = v; save(); render(); break;
     case 'pdel': deleteProject(p.id); break;
+    case 'pmove': {
+      moveProject(p.id, +v);
+      pop.innerHTML = projectHTML(p);
+      placePop();
+      const again = $(`[data-act="pmove"][data-v="${v}"]`, pop);
+      (again.disabled ? $('[data-act="pmove"]:not(:disabled)', pop) : again)?.focus();
+      break;
+    }
     case 'ghost': S.lastProject = v; save(); closePop(); render(); focusEl($('#lists .ghost')); break;
     case 'export': exportJSON(); closePop(); break;
     case 'import': closePop(); $('#importFile').click(); break;
@@ -1664,9 +1683,93 @@ pop.addEventListener('keydown', e => {
 });
 
 /* ───────────── projects, toolbar, menu ───────────── */
+// Project order drives the tab order, the Grouped sections and the round-robin interleaving.
+function moveProject(pid, dir) {
+  const i = S.projects.findIndex(p => p.id === pid), j = i + dir;
+  if (i < 0 || j < 0 || j >= S.projects.length) return;
+  S.projects.splice(j, 0, ...S.projects.splice(i, 1));
+  const pos = capture();
+  save(); render(); play(pos);
+}
+
+/* Dragging a project tab sideways reorders projects. The other tabs slide out of the way.
+   On touch screens a short press-and-hold starts the drag, so swiping still scrolls the tabs. */
+let tabDrag = null, suppressTabClick = false;
+
+tabsEl.addEventListener('pointerdown', e => {
+  const tab = e.target.closest('.tab[data-view]');
+  if (!tab || tab.dataset.view === 'all' || e.button > 0 || S.projects.length < 2) return;
+  const tabs = $$('.tab[data-view]:not(.all)', tabsEl);
+  tabDrag = {
+    tab, tabs, i: tabs.indexOf(tab), x0: e.clientX, y0: e.clientY, active: false, target: tabs.indexOf(tab),
+    centers: tabs.map(t => { const r = t.getBoundingClientRect(); return r.left + r.width / 2; }),
+    shift: tab.getBoundingClientRect().width + 4,
+  };
+  if (e.pointerType === 'touch') tabDrag.hold = setTimeout(() => startTabDrag(), 280);
+  addEventListener('pointermove', onTabMove);
+  addEventListener('pointerup', onTabEnd);
+  addEventListener('pointercancel', onTabEnd);
+});
+
+function startTabDrag() {
+  if (!tabDrag) return;
+  tabDrag.active = true;
+  closePop();
+  tabDrag.tab.classList.add('dragging');
+  tabDrag.tabs.forEach(t => { if (t !== tabDrag.tab) t.classList.add('shifting'); });
+  document.body.classList.add('is-dragging');
+}
+
+function onTabMove(e) {
+  const d = tabDrag;
+  if (!d) return;
+  const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+  if (!d.active) {
+    if (Math.hypot(dx, dy) < 5) return;
+    if (d.hold) { clearTimeout(d.hold); return endTabListeners(); }   // touch: a swipe scrolls instead
+    startTabDrag();
+  }
+  d.tab.style.transform = `translateX(${dx}px)`;
+  const center = d.centers[d.i] + dx;
+  d.target = d.centers.filter((c, j) => j !== d.i && c < center).length;
+  d.tabs.forEach((t, j) => {
+    if (j === d.i) return;
+    const off = j < d.i && j >= d.target ? d.shift : j > d.i && j <= d.target ? -d.shift : 0;
+    t.style.transform = off ? `translateX(${off}px)` : '';
+  });
+}
+
+function onTabEnd() {
+  const d = tabDrag;
+  endTabListeners();
+  if (!d?.active) return;
+  suppressTabClick = true;
+  setTimeout(() => { suppressTabClick = false; }, 0);
+  document.body.classList.remove('is-dragging');
+  if (d.target !== d.i) {
+    S.projects.splice(d.target, 0, ...S.projects.splice(d.i, 1));
+    const pos = capture();
+    save(); render(); play(pos);
+  } else {
+    d.tabs.forEach(t => { t.style.transform = ''; t.classList.remove('dragging', 'shifting'); });
+  }
+}
+
+function endTabListeners() {
+  clearTimeout(tabDrag?.hold);
+  tabDrag = null;
+  removeEventListener('pointermove', onTabMove);
+  removeEventListener('pointerup', onTabEnd);
+  removeEventListener('pointercancel', onTabEnd);
+}
+
+// While a touch drag is active, stop the tab strip from scrolling under the finger.
+tabsEl.addEventListener('touchmove', e => { if (tabDrag?.active) e.preventDefault(); }, { passive: false });
+tabsEl.addEventListener('contextmenu', e => { if (tabDrag) e.preventDefault(); });
+
 tabsEl.addEventListener('click', e => {
   const tab = e.target.closest('.tab');
-  if (!tab) return;
+  if (!tab || suppressTabClick) return;
   if (tab.id === 'addProject') return addProject();
   const v = tab.dataset.view;
   if (v === S.view && v !== 'all') {

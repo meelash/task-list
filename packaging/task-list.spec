@@ -2,7 +2,7 @@ Name:           task-list
 Version:        %{?pkgversion}%{!?pkgversion:1.0.0}
 Release:        %{?pkgrelease}%{!?pkgrelease:1}%{?dist}
 Summary:        Keyboard-first task list with projects, deadlines and priorities
-License:        LicenseRef-Not-Specified
+License:        MIT
 BuildArch:      noarch
 Source0:        %{name}-%{version}.tar.gz
 
@@ -52,6 +52,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+%license LICENSE
 %doc README.md
 %{_bindir}/task-list
 %{_datadir}/%{name}/
