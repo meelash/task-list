@@ -1,5 +1,5 @@
 Name:           task-list
-Version:        %{?pkgversion}%{!?pkgversion:1.1.0}
+Version:        %{?pkgversion}%{!?pkgversion:1.2.0}
 Release:        %{?pkgrelease}%{!?pkgrelease:1}%{?dist}
 Summary:        Keyboard-first task list with projects, deadlines and priorities
 License:        MIT
@@ -62,6 +62,11 @@ fi
 %{_datadir}/icons/hicolor/scalable/apps/io.github.tasklist.TaskList.svg
 
 %changelog
+* Mon Nov 09 2026 Task List <noreply@localhost> - 1.2.0-1
+- Collapse a parent task's subtasks
+- Mark tasks as in progress, shown in a panel above the list
+- Reports of tasks created, completed and deleted over a period
+
 * Mon Oct 05 2026 Task List <noreply@localhost> - 1.1.0-1
 - MIT license
 - Drag project tabs to reorder projects; Move left/right in the project editor
