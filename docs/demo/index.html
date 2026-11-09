@@ -162,6 +162,30 @@ main { padding-top: 10px; padding-bottom: 8px; }
 .grip:hover { color: var(--text); }
 .ghost .grip { visibility: hidden; }
 
+.fold {
+  flex: none; width: 16px; height: 35px; padding: 0; border: 0; background: none;
+  display: grid; place-items: center; color: var(--faint); cursor: pointer; visibility: hidden;
+}
+.row.parent .fold { visibility: visible; }
+.fold:hover { color: var(--text); }
+.fold svg { width: 10px; height: 10px; transform: rotate(90deg); transition: transform .12s; }
+.row.folded .fold svg { transform: none; }
+.kids {
+  flex: none; margin-top: 7px; padding: 1px 7px; border-radius: 999px; font-size: 12px; line-height: 18px;
+  background: var(--chip); color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.play {
+  flex: none; width: 24px; height: 24px; margin-top: 6px; padding: 0; border: 0; border-radius: 7px; background: none;
+  display: grid; place-items: center; color: var(--muted); cursor: pointer; opacity: 0;
+}
+.play svg { width: 12px; height: 12px; }
+.play:hover { background: var(--hover); color: var(--text); }
+.row:hover .play, .row:focus-within .play { opacity: .7; }
+.row.active .play { opacity: 1; color: var(--accent); }
+.done .play { display: none; }
+.row.active .text { font-weight: 600; }
+.row.active::before { width: 5px; opacity: 1; }
+
 .check {
   flex: none; width: 18px; height: 18px; margin: 8.5px 6px 0 0; padding: 0;
   border-radius: 50%; border: 1.75px solid var(--pc); background: transparent; cursor: pointer;
@@ -205,7 +229,38 @@ main { padding-top: 10px; padding-bottom: 8px; }
 @media (hover: none) {
   .grip { opacity: .45; }
   .chip.add { opacity: .4; }
+  .play { opacity: .4; }
 }
+
+/* In progress panel */
+#now { padding-top: 14px; }
+#now h2 { margin: 0 0 4px 10px; font-size: 13px; font-weight: 650; color: var(--muted); }
+#now h2 .n { font-size: 12px; color: var(--faint); font-weight: 500; margin-left: 4px; }
+.nowbox { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 6px; }
+.now-i { display: flex; align-items: flex-start; padding-left: 6px; border-radius: 8px; }
+.now-i:hover { background: var(--hover); }
+.now-t {
+  flex: 1; min-width: 0; border: 0; background: none; padding: 6px 4px 6px 0; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.now-i .play { opacity: 1; color: var(--accent); margin-right: 2px; }
+
+/* Report */
+#pop.wide { width: 440px; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 12px; }
+.tile { padding: 8px; border-radius: 9px; background: var(--chip); }
+.tile b { display: block; font-size: 20px; line-height: 1.2; font-weight: 650; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 11.5px; color: var(--muted); }
+.rep-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rep-table th { font-size: 11.5px; font-weight: 600; color: var(--muted); text-align: right; }
+.rep-table th:first-child, .rep-table td:first-child { text-align: left; }
+.rep-table td { text-align: right; padding: 2px 0; }
+.rep-table .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+.rep-list { max-height: 180px; overflow-y: auto; }
+.rep-item { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; }
+.rep-item .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.rep-item .tx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rep-item .when { flex: none; font-size: 12px; color: var(--muted); }
 
 /* Drag */
 .row.dragging { z-index: 10; background-color: var(--surface); box-shadow: var(--shadow); transition: transform .09s ease-out; pointer-events: none; }
@@ -324,6 +379,8 @@ footer.keys span { white-space: nowrap; }
   </div>
 </header>
 
+<section class="wrap" id="now" aria-label="In progress" hidden></section>
+
 <main class="wrap" id="lists" tabindex="-1"></main>
 
 <footer class="keys"><div class="wrap">
@@ -332,6 +389,8 @@ footer.keys span { white-space: nowrap; }
   <span><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> indent</span>
   <span><kbd>Alt</kbd>+<kbd>↑↓</kbd> move</span>
   <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> done</span>
+  <span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> in progress</span>
+  <span><kbd>Ctrl</kbd>+<kbd>↑↓</kbd> collapse / expand</span>
   <span><kbd>Ctrl</kbd>+<kbd>.</kbd> deadline / estimate</span>
   <span><kbd>Shift</kbd>+<kbd>↑↓</kbd> or <kbd>Shift</kbd>+click select</span>
 </div></footer>
@@ -341,6 +400,7 @@ footer.keys span { white-space: nowrap; }
 <div id="selbar" hidden>
   <span id="selcount"></span>
   <button data-sel="done">Done</button>
+  <button data-sel="active">In progress</button>
   <button data-sel="details">Deadline…</button>
   <button data-sel="delete">Delete</button>
   <button data-sel="clear" aria-label="Clear selection" title="Clear selection (Esc)">✕</button>
@@ -368,6 +428,9 @@ const ICON = {
   check: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.4 2.4 4.6-5"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   plus: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 2.5v7M2.5 6h7"/></svg>',
+  chevron: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg>',
+  play: '<svg viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.8v8.4c0 .4.4.6.7.4l6.4-4.2c.3-.2.3-.6 0-.8L3.7 1.4c-.3-.2-.7 0-.7.4z"/></svg>',
+  pause: '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2.5" y="1.5" width="2.6" height="9" rx=".8"/><rect x="6.9" y="1.5" width="2.6" height="9" rx=".8"/></svg>',
   pencil: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
 };
 
@@ -402,7 +465,7 @@ function seed() {
   add(p1, 'Click the chip to set a deadline and a time estimate', 0, { deadline: now + 3 * H, estimate: 120 });
   add(p1, 'Book flights', 0, { deadline: now + 50 * H });
   add(p2, 'Draft proposal', 0, { deadline: now + 5 * H, estimate: 240 });
-  add(p2, 'Outline', 1, { done: true });
+  add(p2, 'Outline', 1, { done: true, doneAt: now });
   add(p2, 'Pricing section', 1);
   add(p2, 'Send invoice', 0, { deadline: now + 26 * H, estimate: 30 });
   return s;
@@ -566,9 +629,21 @@ function blocksOf(items) {
   return out;
 }
 function newTask(pid, text = '') {
-  const t = { id: uid(), text, done: false, project: pid, deadline: null, estimate: null, created: Date.now() };
+  const t = { id: uid(), text, done: false, project: pid, deadline: null, estimate: null, created: Date.now(), collapsed: false, active: false, doneAt: null };
   S.tasks[t.id] = t;
   return t;
+}
+function setDone(t, done) {
+  if (!!t.done === done) return;
+  t.done = done;
+  t.doneAt = done ? Date.now() : null;
+  if (done) t.active = false;
+}
+// Open every collapsed ancestor of flat[i], so a task that just moved there stays in view.
+function reveal(flat, i) {
+  for (let j = i - 1, d = flat[i].depth; j >= 0 && d > 0; j--) {
+    if (flat[j].depth < d) { d = flat[j].depth; S.tasks[flat[j].id].collapsed = false; }
+  }
 }
 function gc() {
   const live = new Set();
@@ -696,8 +771,23 @@ function render() {
   } else {
     listsEl.append(listEl(projectCtx(S.view)));
   }
+  renderNow();
   paintSel();
   if (popState) refreshPop();
+}
+
+// The tasks marked in progress, from every project, whatever tab or collapsed parent they are under.
+function renderNow() {
+  const el = $('#now');
+  const ids = S.projects.flatMap(p => p.items).map(r => r.id).filter(id => S.tasks[id].active);
+  el.hidden = !ids.length;
+  el.innerHTML = `<h2>In progress<span class="n">${ids.length}</span></h2><div class="nowbox">` + ids.map(id => {
+    const t = S.tasks[id];
+    return `<div class="now-i" data-id="${esc(id)}" style="--pc:${projColor(t.project)}">`
+      + `<button class="check" aria-label="Mark done" title="Mark done">${ICON.check}</button>`
+      + `<button class="now-t" title="Go to this task">${esc(t.text.replace(/\n/g, ' ') || 'Untitled task')}</button>`
+      + `<button class="play" aria-label="Stop working on this" title="Stop working on this">${ICON.pause}</button></div>`;
+  }).join('') + '</div>';
 }
 
 function listEl(ctx) {
@@ -705,10 +795,17 @@ function listEl(ctx) {
   const list = document.createElement('div');
   list.className = 'list';
   list.dataset.ctx = ctx.key;
-  for (const r of ctx.get()) {
+  const flat = ctx.get(), hiddenDone = t => S.hideDone && t.done;
+  let foldDepth = -1;   // depth of the collapsed task whose subtasks we are inside, or -1
+  flat.forEach((r, i) => {
     const t = S.tasks[r.id];
-    list.append(rowEl(r, t, S.hideDone && t.done));
-  }
+    if (r.depth <= foldDepth) foldDepth = -1;
+    const hidden = foldDepth >= 0 || hiddenDone(t);
+    const kids = flat.slice(i + 1, blockEnd(flat, i)).filter(k => !hiddenDone(S.tasks[k.id])).length;
+    const folded = !hidden && !!t.collapsed && kids > 0;
+    if (folded) foldDepth = r.depth;
+    list.append(rowEl(r, t, hidden, kids, folded));
+  });
   list.append(ghostEl(ctx));
   return list;
 }
@@ -718,21 +815,34 @@ function makeEditable(el) {
   el.spellcheck = true;
 }
 
-function rowEl(r, t, hidden) {
+function rowEl(r, t, hidden, kids, folded) {
   const row = document.createElement('div');
-  row.className = 'row' + (t.done ? ' done' : '') + (hidden ? ' hidden' : '');
+  row.className = 'row' + (t.done ? ' done' : '') + (hidden ? ' hidden' : '') + (kids ? ' parent' : '') + (folded ? ' folded' : '');
   row.dataset.id = t.id;
   row.dataset.depth = r.depth;
   row.style.setProperty('--depth', r.depth);
   row.style.setProperty('--pc', projColor(t.project));
+  const foldTip = folded ? 'Show subtasks (Ctrl+↓)' : 'Collapse subtasks (Ctrl+↑)';
   row.innerHTML = `<div class="grip" title="Drag to reprioritize">${ICON.grip}</div>`
+    + `<button class="fold" tabindex="-1" aria-label="${foldTip}" title="${foldTip}">${ICON.chevron}</button>`
     + `<button class="check" aria-label="Mark done" tabindex="-1">${ICON.check}</button>`
-    + `<div class="text"></div><button class="meta" tabindex="-1"></button>`;
+    + `<div class="text"></div>`
+    + (folded ? `<span class="kids" title="${kids} hidden subtask${kids === 1 ? '' : 's'}">${kids}</span>` : '')
+    + `<button class="play" tabindex="-1">${ICON.play}</button><button class="meta" tabindex="-1"></button>`;
   const tx = row.querySelector('.text');
   makeEditable(tx);
   setText(tx, t.text);
   renderMeta(row, t);
+  paintActive(row, t);
   return row;
+}
+
+function paintActive(row, t) {
+  row.classList.toggle('active', !!t.active);
+  const b = row.querySelector('.play'), tip = (t.active ? 'Stop working on this' : 'Mark as in progress') + ' (Ctrl+Shift+Enter)';
+  b.title = tip;
+  b.setAttribute('aria-label', tip);
+  b.setAttribute('aria-pressed', !!t.active);
 }
 
 function ghostEl(ctx) {
@@ -742,7 +852,7 @@ function ghostEl(ctx) {
   row.dataset.depth = 0;
   row.style.setProperty('--pc', projColor(pid));
   const multi = ctx === mixCtx && S.projects.length > 1;
-  row.innerHTML = `<div class="grip"></div>`
+  row.innerHTML = `<div class="grip"></div><div class="fold"></div>`
     + (multi
       ? `<button class="check gdot" title="New tasks go to ${esc(proj(pid).name)} (click to change)" aria-label="Choose project for new tasks"></button>`
       : `<span class="check">${ICON.plus}</span>`)
@@ -813,7 +923,7 @@ setInterval(tick, 30000);
 /* FLIP: animate rows from where they were to where they are now. */
 function capture() {
   const m = new Map();
-  $$('#lists .row[data-id]').forEach(r => m.set(r.dataset.id, r.getBoundingClientRect().top));
+  $$('#lists .row[data-id]:not(.hidden)').forEach(r => m.set(r.dataset.id, r.getBoundingClientRect().top));
   return m;
 }
 function play(before) {
@@ -931,7 +1041,8 @@ function enter(ctx, id, el) {
     t.text = text.slice(0, off);
     const n = newTask(t.project, text.slice(off));
     const hasKids = flat[i + 1] && flat[i + 1].depth > d;
-    flat.splice(i + 1, 0, { id: n.id, depth: hasKids ? d + 1 : d });
+    if (hasKids && t.collapsed) flat.splice(blockEnd(flat, i), 0, { id: n.id, depth: d });   // not into the hidden subtasks
+    else flat.splice(i + 1, 0, { id: n.id, depth: hasKids ? d + 1 : d });
     focusId = n.id;
   });
   focusRow(focusId, caret);
@@ -953,6 +1064,7 @@ function shiftDepth(ctx, ids, delta, caret) {
     if (delta > 0 && (i === 0 || flat[i - 1].depth < d)) return false;
     if (delta < 0 && (d === 0 && ids.length === 1 || !flat.slice(i, end).some(r => r.depth > 0))) return false;
     for (let j = i; j < end; j++) flat[j].depth = Math.max(0, flat[j].depth + delta);
+    reveal(flat, i);
   });
   if (caret != null) focusRow(ids[0], caret);
 }
@@ -972,6 +1084,7 @@ function moveBlock(ctx, ids, dir, caret) {
       const block = flat.splice(i, end - i);
       flat.splice(nEnd - block.length, 0, ...block);
     }
+    reveal(flat, idx(flat, ids[0]));
   });
   if (caret != null) focusRow(ids[0], caret);
 }
@@ -1003,6 +1116,7 @@ function mergeInto(ctx, intoId, fromId) {
     into.text += from.text;
     into.deadline ??= from.deadline;
     into.estimate ??= from.estimate;
+    into.active ||= from.active;
     removeRow(flat, idx(flat, fromId));
   });
   focusRow(intoId, caret);
@@ -1012,7 +1126,7 @@ function toggleDone(id, keepFocus) {
   const t = S.tasks[id];
   const caret = keepFocus ? getCaret(rowById(id).querySelector('.text')) : 0;
   const next = keepFocus && S.hideDone && !t.done ? siblingRow(rowById(id), 1) : null;
-  t.done = !t.done;
+  setDone(t, !t.done);
   const pos = capture();
   save(); render(); play(pos);
   if (!keepFocus) return;
@@ -1043,9 +1157,54 @@ function deleteMany(ids) {
 
 function doneMany(ids) {
   const done = !ids.every(id => S.tasks[id].done);
-  ids.forEach(id => { S.tasks[id].done = done; });
+  ids.forEach(id => setDone(S.tasks[id], done));
   const pos = capture();
   save(); render(); play(pos);
+}
+
+// Updates the rows in place rather than re-rendering, so the caret and selection stay put.
+function toggleActive(ids) {
+  const open = ids.filter(id => !S.tasks[id].done);
+  const on = !open.every(id => S.tasks[id].active);
+  open.forEach(id => {
+    S.tasks[id].active = on;
+    const row = rowById(id);
+    if (row) paintActive(row, S.tasks[id]);
+  });
+  save(); renderNow();
+}
+
+function setCollapsed(id, on) {
+  const t = S.tasks[id];
+  if (!!t.collapsed === on) return;
+  const row = document.activeElement?.closest?.('.text')?.closest('.row[data-id]');
+  const editing = row?.dataset.id, caret = row ? getCaret(row.querySelector('.text')) : null;
+  t.collapsed = on;
+  const pos = capture();
+  save(); render(); play(pos);
+  if (!editing) return;
+  if (rowById(editing)?.classList.contains('hidden')) focusRow(id, 'end');   // its parent was just collapsed
+  else focusRow(editing, caret);
+}
+
+// Ctrl+Up folds this task's subtasks, or, from a task with none to fold, its parent's.
+function collapseFrom(ctx, id) {
+  const t = S.tasks[id];
+  if (rowById(id).classList.contains('parent') && !t.collapsed) return setCollapsed(id, true);
+  const flat = ctx.get(), i = idx(flat, id);
+  let j = i - 1;
+  while (j >= 0 && flat[j].depth >= flat[i].depth) j--;
+  if (j >= 0) setCollapsed(flat[j].id, true);
+}
+
+// Show a task from the In progress panel, opening its tab and collapsed parents as needed.
+function jumpTo(id) {
+  const t = S.tasks[id], flat = proj(t.project).items;
+  closePop();
+  if (S.view !== 'all') S.view = t.project;
+  reveal(flat, idx(flat, id));
+  save(); render();
+  focusRow(id, 'end');
 }
 
 function setProject(id, pid) {
@@ -1092,12 +1251,12 @@ function pasteLines(el, txt) {
       t.text = text.slice(0, off) + first.text;
       after = text.slice(off);
       const i = idx(flat, t.id);
-      at = i + 1; base = flat[i].depth - first.depth;
+      at = t.collapsed ? blockEnd(flat, i) : i + 1; base = flat[i].depth - first.depth;
       lastId = t.id;
     }
     for (const p of parsed) {
       const n = newTask(pid, p.text);
-      n.done = p.done;
+      setDone(n, p.done);
       flat.splice(at++, 0, { id: n.id, depth: Math.max(0, base + p.depth) });
       lastId = n.id;
     }
@@ -1187,7 +1346,7 @@ function selKey(e) {
   }
   switch (e.key) {
     case 'Escape': e.preventDefault(); return clearSel(true);
-    case 'Enter': e.preventDefault(); return mod ? doneMany(ids) : clearSel(true);
+    case 'Enter': e.preventDefault(); return mod ? (e.shiftKey ? toggleActive(ids) : doneMany(ids)) : clearSel(true);
     case 'Backspace': case 'Delete': e.preventDefault(); return deleteMany(ids);
     case 'Tab': e.preventDefault(); return shiftDepth(ctx, ids, e.shiftKey ? -1 : 1);
   }
@@ -1224,7 +1383,7 @@ document.addEventListener('pointerdown', e => {
     return select(key, anchor, row.dataset.id);
   }
   if (!rsel || e.target.closest('#selbar, #pop')) return;
-  if (row?.classList.contains('selected') && e.target.closest('.grip, .meta, .check')) return;
+  if (row?.classList.contains('selected') && e.target.closest('.grip, .meta, .check, .play')) return;
   clearSel(false);
 }, true);
 
@@ -1232,6 +1391,7 @@ $('#selbar').addEventListener('click', e => {
   const act = e.target.closest('[data-sel]')?.dataset.sel;
   if (!act || !rsel) return;
   if (act === 'done') doneMany(selIds());
+  else if (act === 'active') toggleActive(selIds());
   else if (act === 'details') openDetails(rsel.head);
   else if (act === 'delete') deleteMany(selIds());
   else clearSel(false);
@@ -1263,7 +1423,7 @@ listsEl.addEventListener('keydown', e => {
     case 'Enter':
       if (e.shiftKey && !mod) return;   // the browser's own line break
       e.preventDefault();
-      if (mod) return toggleDone(id, true);
+      if (mod) return e.shiftKey ? toggleActive([id]) : toggleDone(id, true);
       return enter(ctx, id, el);
     case 'Tab':
       e.preventDefault();
@@ -1281,6 +1441,7 @@ listsEl.addEventListener('keydown', e => {
     case 'ArrowDown': {
       const dir = e.key === 'ArrowUp' ? -1 : 1;
       if (e.altKey && !e.shiftKey) { e.preventDefault(); return moveBlock(ctx, [id], dir, getCaret(el)); }
+      if (mod && !e.shiftKey) { e.preventDefault(); return dir < 0 ? collapseFrom(ctx, id) : setCollapsed(id, false); }
       if (e.shiftKey && !mod && !e.altKey && onEdgeLine(el, dir < 0 ? 'first' : 'last')) {
         // Shift+arrow off the edge of a task's text starts selecting whole tasks.
         e.preventDefault();
@@ -1322,6 +1483,7 @@ listsEl.addEventListener('input', e => {
   }
   S.tasks[row.dataset.id].text = textOf(el);
   save();
+  if (S.tasks[row.dataset.id].active) renderNow();
 });
 
 listsEl.addEventListener('paste', e => {
@@ -1341,11 +1503,21 @@ listsEl.addEventListener('click', e => {
   if (row?.dataset.id) {
     if (e.target.closest('.check')) return row.classList.contains('selected') ? doneMany(selIds()) : toggleDone(row.dataset.id, false);
     if (e.target.closest('.meta')) return openDetails(row.dataset.id);
+    if (e.target.closest('.fold')) return setCollapsed(row.dataset.id, !row.classList.contains('folded'));
+    if (e.target.closest('.play')) return toggleActive(row.classList.contains('selected') ? selIds() : [row.dataset.id]);
   }
   if (e.shiftKey) return;
   if (row && !e.target.closest('.text, .grip, button')) return focusEl(row, 'end');
   const list = e.target.closest('.list');
   if (list && e.target === list) focusEl($('.ghost', list), 'end');
+});
+
+$('#now').addEventListener('click', e => {
+  const id = e.target.closest('.now-i')?.dataset.id;
+  if (!id) return;
+  if (e.target.closest('.check')) toggleDone(id, false);
+  else if (e.target.closest('.play')) toggleActive([id]);
+  else if (e.target.closest('.now-t')) jumpTo(id);
 });
 
 /* ───────────── drag & drop ───────────── */
@@ -1429,7 +1601,7 @@ function onDragMove(e) {
 
   drag.ind.hidden = false;
   drag.ind.style.top = (y - lr.top - 1.5) + 'px';
-  drag.ind.style.left = (8 + drag.depth * INDENT + 26) + 'px';
+  drag.ind.style.left = (8 + drag.depth * INDENT + 46) + 'px';
 
   // Auto-scroll near viewport edges.
   const edge = 70;
@@ -1460,6 +1632,7 @@ function onDragEnd(e) {
   let at = dr.before ? idx(rest, dr.before.dataset.id) : rest.length;
   if (at < 0) at = rest.length;
   rest.splice(at, 0, ...moving);
+  reveal(rest, at);
   dr.ctx.set(rest);
   gc(); save(); render(); play(pos);
 }
@@ -1478,6 +1651,7 @@ function closePop(refocus) {
   const st = popState;
   popState = null;
   pop.hidden = true;
+  pop.classList.remove('wide');
   if (refocus && st.type === 'task') focusRow(st.id, 'end');
 }
 function placePop() {
@@ -1508,6 +1682,9 @@ function refreshPop() {
       `<button class="opt${p.id === S.lastProject ? ' on' : ''}" data-act="ghost" data-v="${p.id}" style="--c:${p.color}"><span class="dot"></span>${esc(p.name)}</button>`).join('')}</div>`;
   } else if (st.type === 'menu') {
     pop.innerHTML = menuHTML();
+  } else if (st.type === 'report') {
+    if (pop.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') $('#repBody', pop).innerHTML = reportBody();
+    else pop.innerHTML = reportHTML();
   }
   placePop();
 }
@@ -1612,9 +1789,79 @@ function openGhostProjectMenu(btn) {
   openPop({ type: 'ghost' }, () => $('#lists .gdot'));
 }
 
+/* ───────────── report ─────────────
+   Combines the live tasks with the server's archive of removed ones. A period runs from
+   `from` up to but not including `to`, both at local midnight. */
+const addDays = (ms, n) => { const d = new Date(ms); d.setDate(d.getDate() + n); return d.getTime(); };
+const parseDay = v => new Date(v + 'T00:00').getTime();
+const dayInput = ms => toLocalInput(ms).slice(0, 10);
+const REPORT_PRESETS = { today: 'Today', week: 'Last 7 days', month: 'This month', d30: 'Last 30 days' };
+
+function reportRange(preset) {
+  const today = dayStart(Date.now()), to = addDays(today, 1);
+  const from = { today, week: addDays(today, -6), d30: addDays(today, -29) }[preset] ?? new Date(new Date(today).setDate(1)).getTime();
+  return { preset, from, to };
+}
+
+async function openReport() {
+  openPop({ type: 'report', archive: [], ...reportRange('week') }, () => $('#menuBtn'));
+  pop.classList.add('wide');
+  placePop();
+  if (!online) return;
+  const opened = popState;
+  try {
+    const r = await fetch('api/archive', { cache: 'no-store' });
+    if (r.ok && popState === opened) { popState.archive = await r.json(); refreshPop(); }
+  } catch {}
+}
+
+function reportTasks() {
+  const live = Object.values(S.tasks).map(t => ({
+    project: proj(t.project)?.name || 'Unknown', color: projColor(t.project), text: t.text,
+    deadline: t.deadline, created: t.created, doneAt: t.done ? t.doneAt : null, deletedAt: null, open: !t.done,
+  }));
+  const gone = popState.archive.filter(a => !S.tasks[a.id]).map(a => ({ ...a, open: false }));
+  return [...live, ...gone].filter(t => t.text.trim());
+}
+
+function reportHTML() {
+  const st = popState;
+  return `<h3>Report</h3><div class="opts">${Object.entries(REPORT_PRESETS).map(([k, label]) =>
+      `<button class="opt${st.preset === k ? ' on' : ''}" data-act="rep-range" data-v="${k}">${label}</button>`).join('')}</div>
+    <div class="inrow"><input type="date" id="repFrom" value="${dayInput(st.from)}" aria-label="From">
+      <span class="hint">to</span><input type="date" id="repTo" value="${dayInput(addDays(st.to, -1))}" aria-label="To"></div>
+    <div id="repBody">${reportBody()}</div>`;
+}
+
+function reportBody() {
+  const { from, to } = popState;
+  const within = ms => ms != null && ms >= from && ms < to;
+  const tasks = reportTasks();
+  const created = tasks.filter(t => within(t.created));
+  const completed = tasks.filter(t => within(t.doneAt)).sort((a, b) => b.doneAt - a.doneAt);
+  const deleted = tasks.filter(t => within(t.deletedAt) && t.doneAt == null);
+  const late = completed.filter(t => t.deadline && t.doneAt > t.deadline).length;
+  const tile = (n, label) => `<div class="tile"><b>${n}</b><span>${label}</span></div>`;
+
+  const projects = new Map();
+  const bucket = t => projects.get(t.project) || projects.set(t.project, { color: t.color, created: 0, completed: 0 }).get(t.project);
+  created.forEach(t => bucket(t).created++);
+  completed.forEach(t => bucket(t).completed++);
+
+  return `<div class="tiles">${tile(created.length, 'Created')}${tile(completed.length, 'Completed')}`
+    + `${tile(created.filter(t => t.open).length, 'Created, still open')}${tile(deleted.length, 'Deleted unfinished')}</div>`
+    + (late ? `<div class="status">${late} completed after the deadline.</div>` : '')
+    + (projects.size ? `<div class="lbl" style="margin-top:12px">By project</div><table class="rep-table"><tr><th></th><th>Created</th><th>Completed</th></tr>`
+      + [...projects].map(([name, p]) => `<tr><td><span class="dot" style="--c:${esc(p.color)}"></span>${esc(name)}</td><td>${p.created}</td><td>${p.completed}</td></tr>`).join('') + '</table>' : '')
+    + (completed.length ? `<div class="lbl" style="margin-top:12px">Completed</div><div class="rep-list">`
+      + completed.map(t => `<div class="rep-item" style="--c:${esc(t.color)}"><span class="dot"></span><span class="tx">${esc(t.text.replace(/\n/g, ' '))}</span><span class="when">${esc(new Date(t.doneAt).toLocaleDateString([], { month: 'short', day: 'numeric' }))}</span></div>`).join('') + '</div>' : '');
+}
+
 function menuHTML() {
   const themes = { auto: 'Auto', light: 'Light', dark: 'Dark' };
   return `<div class="menu">
+    <button data-act="report">Report…</button>
+    <hr>
     <button data-act="export">Export tasks (JSON)</button>
     <button data-act="import">Import tasks…</button>
     <hr>
@@ -1626,6 +1873,8 @@ function menuHTML() {
       <kbd>Tab</kbd><span>Make subtask · <kbd>Shift+Tab</kbd> outdent</span>
       <kbd>Alt+↑ / ↓</kbd><span>Move task up or down</span>
       <kbd>Ctrl+Enter</kbd><span>Toggle done</span>
+      <kbd>Ctrl+Shift+Enter</kbd><span>Mark in progress</span>
+      <kbd>Ctrl+↑ / ↓</kbd><span>Collapse or expand subtasks</span>
       <kbd>Ctrl+.</kbd><span>Deadline, estimate, project</span>
       <kbd>Backspace</kbd><span>At start: outdent, merge, or delete if empty</span>
       <kbd>Shift+↑ / ↓</kbd><span>Select tasks (also Shift+click; Ctrl+A twice for all)</span>
@@ -1660,12 +1909,20 @@ pop.addEventListener('click', e => {
       break;
     }
     case 'ghost': S.lastProject = v; save(); closePop(); render(); focusEl($('#lists .ghost')); break;
+    case 'report': closePop(); openReport(); break;
+    case 'rep-range': Object.assign(popState, reportRange(v)); refreshPop(); break;
     case 'export': exportJSON(); closePop(); break;
     case 'import': closePop(); $('#importFile').click(); break;
     case 'theme': S.theme = { auto: 'light', light: 'dark', dark: 'auto' }[S.theme]; save(); applyTheme(); refreshPop(); break;
   }
 });
 pop.addEventListener('change', e => {
+  if (popState?.type === 'report' && e.target.value) {
+    if (e.target.id === 'repFrom') popState.from = parseDay(e.target.value);
+    if (e.target.id === 'repTo') popState.to = addDays(parseDay(e.target.value), 1);
+    popState.preset = null;
+    return refreshPop();
+  }
   if (popState?.type !== 'task') return;
   const ts = popTargets().map(id => S.tasks[id]);
   if (e.target.id === 'dueIn') { const at = e.target.value ? new Date(e.target.value).getTime() : null; ts.forEach(t => { t.deadline = at; }); }

@@ -297,7 +297,7 @@ footer a { color: var(--muted); }
       <div class="chrome"><i></i><i></i><i></i></div>
       <picture>
         <source srcset="screenshots/hero-dark.png" media="(prefers-color-scheme: dark)">
-        <img src="screenshots/hero-light.png" width="2200" height="1440" alt="Task List showing tasks from three color-coded projects interleaved, with deadline chips colored from amber to red and one overdue task">
+        <img src="screenshots/hero-light.png" width="2200" height="1440" alt="Task List with an In progress panel above tasks from three color-coded projects, one parent task collapsed, and deadline chips colored from amber to red">
       </picture>
     </div>
 
@@ -308,6 +308,8 @@ footer a { color: var(--muted); }
       <span><kbd>Alt</kbd> <kbd>↑</kbd><kbd>↓</kbd> reprioritize</span>
       <span><kbd>Ctrl</kbd> <kbd>Enter</kbd> done</span>
       <span><kbd>Ctrl</kbd> <kbd>.</kbd> deadline</span>
+      <span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd> in progress</span>
+      <span><kbd>Ctrl</kbd> <kbd>↑</kbd><kbd>↓</kbd> collapse</span>
     </div>
   </div>
 </header>
@@ -363,7 +365,49 @@ footer a { color: var(--muted); }
           <li>Paste a bulleted list from anywhere and get nested tasks</li>
         </ul>
       </div>
-      <div class="shot"><img src="screenshots/select.png" width="2200" height="1440" loading="lazy" alt="Three subtasks selected with a floating bar offering Done, Deadline and Delete"></div>
+      <div class="shot"><img src="screenshots/select.png" width="2200" height="1440" loading="lazy" alt="Three subtasks selected with a floating bar offering Done, In progress, Deadline and Delete"></div>
+    </div>
+
+    <div class="feature reveal">
+      <div class="copy">
+        <span class="kicker">In progress</span>
+        <h2>Decide what you're doing <em>right now.</em></h2>
+        <p>Press Ctrl+Shift+Enter on the tasks you've committed to and they appear in a panel above the list. It shows every project's picks on every tab, so the rest of the list can wait.</p>
+        <ul class="points">
+          <li style="--c:var(--personal)">Click one to jump straight to it, even under a collapsed parent</li>
+          <li style="--c:var(--acme)">Finish a task and it leaves the panel by itself</li>
+          <li style="--c:var(--globex)">Select several tasks to start them all at once</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="screenshots/focus.png" width="2200" height="1440" loading="lazy" alt="In progress panel listing four tasks from different projects above the full task list"></div>
+    </div>
+
+    <div class="feature flip reveal">
+      <div class="copy">
+        <span class="kicker">Collapse</span>
+        <h2>Fold a big task down to <em>one line.</em></h2>
+        <p>The chevron beside a parent tucks its subtasks away and shows how many are hidden. Ctrl+↑ folds and Ctrl+↓ opens, so your hands stay on the keyboard.</p>
+        <ul class="points">
+          <li style="--c:var(--personal)">Ctrl+↑ from a subtask folds its parent and puts you there</li>
+          <li style="--c:var(--acme)">Move a task into a folded parent and it opens, so nothing vanishes</li>
+          <li style="--c:var(--globex)">Stays folded the next time you open the app</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="screenshots/collapse.png" width="2200" height="1440" loading="lazy" alt="Task list with two parent tasks collapsed showing hidden subtask counts and one parent expanded"></div>
+    </div>
+
+    <div class="feature reveal">
+      <div class="copy">
+        <span class="kicker">Reports</span>
+        <h2>See what actually <em>got done.</em></h2>
+        <p>Pick a period and see what you created, finished and dropped, overall and for each project. It's handy for a weekly review or for showing a client what got finished.</p>
+        <ul class="points">
+          <li style="--c:var(--personal)">Today, the last 7 or 30 days, this month, or any dates you choose</li>
+          <li style="--c:var(--acme)">Shows anything completed after its deadline</li>
+          <li style="--c:var(--globex)">In the app, tasks you've since cleared or deleted still count</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="screenshots/report.png" width="2200" height="1440" loading="lazy" alt="Report popover showing tasks created, completed and deleted over the last 7 days, a per-project table and a list of completed tasks"></div>
     </div>
 
     <div class="duo reveal" style="margin-top:110px">
@@ -434,6 +478,8 @@ footer a { color: var(--muted); }
         <div><span>Subtask / outdent</span><span><kbd>Tab</kbd> <kbd>Shift</kbd> <kbd>Tab</kbd></span></div>
         <div><span>Move up / down</span><span><kbd>Alt</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span></div>
         <div><span>Toggle done</span><span><kbd>Ctrl</kbd> <kbd>Enter</kbd></span></div>
+        <div><span>Mark in progress</span><span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></span></div>
+        <div><span>Collapse / expand subtasks</span><span><kbd>Ctrl</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span></div>
         <div><span>Deadline, estimate, project</span><span><kbd>Ctrl</kbd> <kbd>.</kbd></span></div>
         <div><span>Select tasks</span><span><kbd>Shift</kbd> <kbd>↑</kbd> <kbd>↓</kbd></span></div>
         <div><span>Select all</span><span><kbd>Ctrl</kbd> <kbd>A</kbd> ×2</span></div>

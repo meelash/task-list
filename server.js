@@ -31,7 +31,21 @@ db.exec(`
     done          INTEGER NOT NULL DEFAULT 0,
     deadline      INTEGER,                   -- epoch ms
     estimate_min  INTEGER,
-    created       INTEGER NOT NULL
+    created       INTEGER NOT NULL,
+    collapsed     INTEGER NOT NULL DEFAULT 0, -- subtasks folded away
+    active        INTEGER NOT NULL DEFAULT 0, -- marked as in progress
+    done_at       INTEGER                     -- epoch ms; null for tasks finished before this was recorded
+  );
+  -- Tasks removed from the list, kept so reports can still count them.
+  CREATE TABLE IF NOT EXISTS archived_tasks (
+    id            TEXT PRIMARY KEY,
+    project_name  TEXT NOT NULL,
+    project_color TEXT NOT NULL,
+    text          TEXT NOT NULL,
+    deadline      INTEGER,
+    created       INTEGER NOT NULL,
+    done_at       INTEGER,
+    deleted_at    INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS tasks_by_project ON tasks(project_id, position);
   -- Interleaved view: which project fills each top-level slot, in order.
@@ -43,6 +57,13 @@ db.exec(`
   INSERT OR IGNORE INTO meta (key, value) VALUES ('rev', '0');
 `);
 
+// Databases created before these columns existed get them added in place.
+const taskColumns = new Set(db.prepare(`PRAGMA table_info(tasks)`).all().map(c => c.name));
+const newColumns = { collapsed: 'INTEGER NOT NULL DEFAULT 0', active: 'INTEGER NOT NULL DEFAULT 0', done_at: 'INTEGER' };
+for (const [column, type] of Object.entries(newColumns)) {
+  if (!taskColumns.has(column)) db.exec(`ALTER TABLE tasks ADD COLUMN ${column} ${type}`);
+}
+
 const q = {
   rev: db.prepare(`SELECT CAST(value AS INTEGER) AS rev FROM meta WHERE key = 'rev'`),
   setRev: db.prepare(`UPDATE meta SET value = ? WHERE key = 'rev'`),
@@ -50,8 +71,14 @@ const q = {
   tasks: db.prepare(`SELECT * FROM tasks ORDER BY project_id, position`),
   mix: db.prepare(`SELECT project_id FROM mix_slots ORDER BY position`),
   insProject: db.prepare(`INSERT INTO projects (id, name, color, position) VALUES (?, ?, ?, ?)`),
-  insTask: db.prepare(`INSERT INTO tasks (id, project_id, position, depth, text, done, deadline, estimate_min, created)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  insTask: db.prepare(`INSERT INTO tasks (id, project_id, position, depth, text, done, deadline, estimate_min, created, collapsed, active, done_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+  withProject: db.prepare(`SELECT t.*, p.name AS project_name, p.color AS project_color
+                           FROM tasks t JOIN projects p ON p.id = t.project_id`),
+  archive: db.prepare(`INSERT OR REPLACE INTO archived_tasks (id, project_name, project_color, text, deadline, created, done_at, deleted_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
+  unarchive: db.prepare(`DELETE FROM archived_tasks WHERE id IN (SELECT id FROM tasks)`),
+  archived: db.prepare(`SELECT * FROM archived_tasks`),
   insSlot: db.prepare(`INSERT INTO mix_slots (position, project_id) VALUES (?, ?)`),
 };
 
@@ -63,6 +90,7 @@ function readState() {
     tasks[t.id] = {
       id: t.id, text: t.text, done: !!t.done, project: t.project_id,
       deadline: t.deadline ?? null, estimate: t.estimate_min ?? null, created: t.created,
+      collapsed: !!t.collapsed, active: !!t.active, doneAt: t.done_at ?? null,
     };
     byId.get(t.project_id)?.items.push({ id: t.id, depth: t.depth });
   }
@@ -80,6 +108,7 @@ function writeState(data) {
 
   db.exec('BEGIN IMMEDIATE');
   try {
+    const before = q.withProject.all();
     db.exec('DELETE FROM mix_slots; DELETE FROM tasks; DELETE FROM projects;');
     const projectIds = new Set();
     const seenTasks = new Set();
@@ -93,12 +122,21 @@ function writeState(data) {
         if (!t || seenTasks.has(r.id)) return;
         seenTasks.add(r.id);
         q.insTask.run(str(r.id, 64), id, i, Math.max(0, intOrNull(r.depth) ?? 0), str(t.text),
-          t.done ? 1 : 0, intOrNull(t.deadline), intOrNull(t.estimate), intOrNull(t.created) ?? Date.now());
+          t.done ? 1 : 0, intOrNull(t.deadline), intOrNull(t.estimate), intOrNull(t.created) ?? Date.now(),
+          t.collapsed ? 1 : 0, t.active ? 1 : 0, t.done ? intOrNull(t.doneAt) : null);
       });
     });
     (Array.isArray(data.mix) ? data.mix : []).forEach((pid, i) => {
       if (projectIds.has(pid)) q.insSlot.run(i, pid);
     });
+    // Anything that left the list goes to the archive; anything restored (undo) comes back out of it.
+    const now = Date.now();
+    for (const t of before) {
+      if (!seenTasks.has(t.id) && t.text.trim()) {
+        q.archive.run(t.id, t.project_name, t.project_color, t.text, t.deadline, t.created, t.done ? t.done_at : null, now);
+      }
+    }
+    q.unarchive.run();
     const rev = q.rev.get().rev + 1;
     q.setRev.run(String(rev));
     db.exec('COMMIT');
@@ -144,6 +182,13 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { rev: writeState(body.data) });
       }
       return send(res, 405, { error: 'method not allowed' });
+    }
+    if (url.pathname === '/api/archive') {
+      if (req.method !== 'GET') return send(res, 405, { error: 'method not allowed' });
+      return send(res, 200, q.archived.all().map(a => ({
+        id: a.id, project: a.project_name, color: a.project_color, text: a.text,
+        deadline: a.deadline ?? null, created: a.created, doneAt: a.done_at ?? null, deletedAt: a.deleted_at,
+      })));
     }
     send(res, 404, { error: 'not found' });
   } catch (e) {

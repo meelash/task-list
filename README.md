@@ -46,6 +46,8 @@ so only do that on a network you trust.
 | `Tab` / `Shift+Tab` | Make it a subtask / outdent |
 | `Alt+↑` / `Alt+↓` | Move the task (with its subtasks) up or down |
 | `Ctrl+Enter` | Toggle done |
+| `Ctrl+Shift+Enter` | Mark as in progress |
+| `Ctrl+↑` / `Ctrl+↓` | Collapse / expand subtasks (from a subtask, `Ctrl+↑` collapses its parent) |
 | `Ctrl+.` | Deadline, time estimate, project |
 | `Backspace` at start | Outdent, merge into the task above, or delete if empty |
 | `Shift+↑` / `Shift+↓`, Shift+click | Select several tasks (Ctrl+A twice selects all) |
@@ -63,13 +65,22 @@ Each project keeps its own priority order in both views. Dragging a task under a
 **Urgency.** Once a task has a deadline, its colour goes from amber to red as *time needed ÷ time left* approaches 1.
 Overdue tasks pulse red. Without an estimate, the task is assumed to need 12 hours.
 
+**In progress.** Mark the tasks you've decided to work on with `Ctrl+Shift+Enter` or the ▶ button on the row.
+They appear in a panel above the list, from every project and even under a collapsed parent. Click one to go to it. Marking a task done clears it.
+
+**Collapsing.** The chevron beside a parent task folds its subtasks away and shows how many are hidden.
+A task moved or indented into a collapsed parent opens that parent, so it stays in view.
+
+**Reports.** The menu's *Report…* shows tasks created, completed and deleted for a period, overall and by project.
+Completion dates were not recorded before this feature existed, so tasks finished earlier are not counted as completed.
+
 ## Storage
 
 The browser keeps a cache in localStorage, so the page opens instantly and keeps working if the server is down.
 Edits sync to SQLite when it is reachable again.
 Each save carries a revision number. If two windows edit at once, the stale one picks up the newer data instead of overwriting it.
 
-Tables: `projects`, `tasks` (outline order as `position` + `depth`), `mix_slots` (the interleaved order), and `meta`.
+Tables: `projects`, `tasks` (outline order as `position` + `depth`), `archived_tasks` (removed tasks, kept for reports), `mix_slots` (the interleaved order), and `meta`.
 
 ## Website
 
