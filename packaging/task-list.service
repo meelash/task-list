@@ -1,6 +1,9 @@
 [Unit]
 Description=Task List server (SQLite)
 Documentation=file:///usr/share/doc/task-list/README.md
+# The unit is enabled globally, so root's and other system accounts' user
+# managers (started by sudo, the login screen) would otherwise try to run it.
+ConditionUser=!@system
 
 [Service]
 Type=simple
